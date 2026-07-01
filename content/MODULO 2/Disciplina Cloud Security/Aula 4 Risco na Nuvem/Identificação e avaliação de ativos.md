@@ -1,0 +1,34 @@
+[[Aula 4 Risco na Nuvem]]
+
+Em geral o risco não é ruim, e sim representa a chance, probabilidade de algo, seja lá o que for acontecer.
+	Identificação de riscos é o processo de busca, reconhecimento e descrição de riscos, tendo como base o contexto estabelecido e apoiado na comunicação e consulta com as partes interessadas, internas e externas (ISO 27001).
+
+Para não sofrer com problemas quaisquer, comece identificando quais são previsíveis, mas faça este trabalho com todo os riscos que puder identificar.
+	Desta forma, comece a trabalhar com a identificação dos riscos com o estilo "top-sown" saindo do mais geral e terminando no mais específico ao seu negócio, ao departamento, a função.
+
+A empresa deve buscar pessoal capacitado para o importante processo de identificação do risco e buscar utilizar as melhores tecnologias e sistemas para sua correta catalogação.
+	Envolver a equipe diretamente responsável pela execução do processo, do projeto ou da atividade que está tendo os riscos identificados, também ajuda a criar a responsabilidade em relação ao processo de gestão de riscos e o comprometimento em relação ao tratamento dos riscos.
+
+# A documentação dessa etapa de identificação dos riscos geralmente inclui pelo menos:
+
+- O escopo do processo, projeto ou atividade coberto pela identificação
+
+- Os participantes do processo de identificação
+
+- A abordagem ou método utilizado para identificação dos riscos e as fontes de informação consultadas 
+
+- O registro dos riscos identificados em sistemas, planilha ou matriz de avaliação de riscos, descrevendo os componentes de cada risco separadamente com, pelo menos, suas causas, o evento e as consequências.
+
+# Documentação para a etapa de identificação dos riscos:
+
+![[Etapas para documentar os riscos.png]]
+
+Não devemos nos esquecer que esse também é um trabalho multidisciplinar!
+	A partir da coleta de opiniões em relação ao ativo objeto de estudo, de especialistas do órgão em computação e segurança da informação e de colaboradores da Diretoria de Defesa Comercial (DECOM) responsáveis pelo SDD são identificadas possíveis ameaças, controle, vulnerabilidades e impactos.
+
+Etapa do processo de identificação de riscos:
+- Identificar ativos
+- Identificar ameaças
+- Identificar controles existentes
+- Identificar vulnerabilidades
+- Identificar as consequências

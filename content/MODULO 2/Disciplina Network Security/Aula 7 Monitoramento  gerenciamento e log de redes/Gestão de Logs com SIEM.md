@@ -1,0 +1,55 @@
+[[Aula 7 Monitoramento, gerenciamento e log de redes]]
+
+# Definição 
+- O SIEM - Security Information and Event Management é um centralizador e correlacionador de eventos de logs de segurança 
+- Ele realiza análises, insights e diagnostica um incidente baseado em logs e eventos de diversos appliances como servidores. 
+	A inteligencia de análise e correlação do SIEM é muito similar ao BI
+
+É um centralizador de todos os eventos com uma visão nificada, o que permite uma análise em real time, visando contra medidas de defesa.
+
+- Agregação
+- Normalização
+- Análise
+- Informação com inteligência
+
+# Visão SIEM
+![[Visao SIEM.png]]
+
+
+	Ele apresenta através de dashboads e visões de alertas do que está acontecendo na visão de segurança e de rede.
+
+![[Visão de alertas SIEM.png]]
+
+# Porque gerenciar Logs e Eventos de rede:
+- Não é possível monitorar e agir preventivamente em todas as ferramentas de segurança de uma empresa manualmente 
+- Consolida os dados e mostra pontos de atenção críticos
+- Mais uma camada de segurança ativa dentro da organização
+- Ferramenta em compliance com muitas normas como ISO 7001 -  PCI - DSS, GDPR, HIPAA e SOX é muito bem visto por auditores. 
+- 888//Torna o monitoramento proativo
+- Segurança para gerenciamento de IoT através de APIs
+- Vigilância sobre acessos indevidos, mitigando e prevenindo ameaças internas
+- É o coração dos centros de operação como NOC e SOC
+
+# Considerações sobre SIEM
+
+#### Implementação:
+- Suporte especializado necessário
+- Profissional treinado e dedicado para monitorar a ferramenta
+- Custo elevado da ferramenta - ROI
+- Terceirização e SIEM Software as a Service -SaaS
+- Ao escolher o fabricante, se atentar para a Interligência da análise e resultado do insight
+- Aplique o PDCA no SIEM
+
+#### Licenciamento (existes os dois tipos):
+- Armazenamento quantidade de gigabytes por dia
+- Velocidade dos eventos de dados processados por dia
+
+## Principais ferramentas de SIEM
+- Splunk
+- Suricata
+- Octopus
+- FortiSiem
+- Wazuh
+
+# Maior SIEM desenvolvido:
+![[PRISM.png]]Esse SIEM fazia correlacionamento com os dados, como VOIP, fotos, locais que você salva, contas, a quem é associado e mais N recursos

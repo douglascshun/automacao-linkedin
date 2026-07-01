@@ -1,0 +1,62 @@
+[[Aula 2 Criação de um CSIRT]]
+
+Estão entre os elementos mais cruciais!
+	A documentação das `políticas e procedimentos` é uma das atividades mais importantes de um CSIRT!
+		"Não dá pra falar de um sem o outro "
+								Mandia 
+
+Sem politicas e procedimentos, não há como entender o que é e o que não é aceitável
+	Cada um corresponde à um proposito:
+		- Política: O que
+		- Procedimento: Como
+	Sem eles: fracasso!
+
+O conceito de políticas e procedimentos, pois muitas vezes se `mesclam e se misturam`, mas procedimento é:
+	- Detalham como uma equipe realiza atividades
+	- Beneficio para ajudar a tornar uma política bem-sucedida
+	- Ajudam a se manter dentro das diretrizes da política 
+
+Bora pensar e concluir!
+	- Um `serviço` é definido `para o cliente`
+	- Uma `política` define a `maneira` e a `qualidade` no qual o serviço é prestado
+	- O `como` será prestado é descrito no `procedimento`
+	- A política `NÃO É` um conjunto de `procedimentos detalhados`
+	- `NÃO É` um documento `simplório`
+
+Atributos de uma boa política
+	- Aprovada pela administração
+	- Clara
+	- Concisa
+	- Necessária e suficiente 
+	- Utilizável 
+	- Implementável
+	- Exequível
+	- Link com a missão
+	- Identificação de papeis
+	- Responsabilidade
+	- Interação
+	- Descrição dos procedimentos
+	- Relacionamentos 
+	- Glossário de termos
+	- Manutenção
+
+Após a definição de uma política, é aconselhável verificar sua validade na prática
+	Questões devem ser levadas em consideração
+		- Quem valida não é o mesmo que cria
+		- Compare com outra politicas de SI
+		- Implemente um piloto em cenários ruins
+		- Valide os atributos e o conteúdo
+
+Implementando as políticas e procedimentos
+	Uma vez  concluída a validação da política, ele poderá ser implementada
+		- Obter a aprovação
+		- Comunicar a política 
+		- Contratar e treinar 
+		- Investir na infraestrutura 
+		- Anunciar o CSIRT para sua comunidade
+		- Dar recomendações à sua comunidade 
+
+Sem uma `compreensão clara` da política, não será possível para a equipe cumprir corretamente com suas reconciabilidades.
+	Não esqueça:
+		- Será necessário fazer a verificação regularmente 
+		- Garantia de qualidade e busque a melhoria continua

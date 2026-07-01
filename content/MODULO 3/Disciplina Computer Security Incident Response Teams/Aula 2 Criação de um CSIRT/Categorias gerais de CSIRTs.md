@@ -1,0 +1,38 @@
+[[Aula 2 Criação de um CSIRT]]
+
+Categorias gerais de CSIRT (baseadas no propósito):
+	- CSIRT interno 
+	- Centro de coordenação de vários CSIRTs
+	- Os centros de análise que recebem dados de várias fontes
+	- Equipes de fornecedores de SW e HW que analisam vulnerabilidades
+	- Provedores de resposta a incidentes
+
+Modelos Organizacionais 
+	- Equipe de segurança 
+	- CSIRT Distribuído Internamente (Integral ou parcial)
+	- CSIRT Centralizado Internamente (Integral)
+	- Combinação do CSIRT e Distribuído Internamente 
+	- CSIRT de coordenação
+
+Categorias mais detalhadas
+	- Militar
+	- Educacional
+	- Informação e comunicação
+	- Energia Elétrica
+	- Óleo e gás
+	- Abastecimento de água
+	- Serviços de aplicação da lei 
+	- Serviços de incêndio e regaste
+	- Governo e administração pública 
+	- Transporte
+	- Bancário e financeiro 
+	- Serviços profissionais 
+	- Outra organização comercial
+	- Outra organização sem fins lucrativos
+
+
+Estrutura Brasileira
+![[Estrutura Brasileira CERt.png]]
+
+Atividades do CERT.BR
+![[Atividades do CERT br.png]]

@@ -1,0 +1,71 @@
+[[Aula 3 Gerenciamento operacional de um CSIRT]]
+
+Código de ética /= de código de conduta
+
+Código de conduta
+	Guia prático com regras e princípios do Código de Ética
+
+Código de Ética 
+	Contém valores e princípios da organização.
+
+Exemplo:
+	Demonstre a devida curiosidade, mas ao mesmo tempo, mostra a devida moderação no que busca.
+		- Simples (Não é um procedimento!)
+		- Fácil comunicação
+		- Aplicável a todos 
+		- Fornece orientação básica
+
+Por que é importante?
+	Porque os membros do CSIRT tem:
+		- Acesso à muitos sistemas
+		- Que ser inspirados
+		- Que reconhecer suas responsabilidades
+		- Que identificam `deveres`
+
+Dever de confiança
+	- Assumir compromissos que possam cumprir 
+	- Se comportar de maneira previsível 
+	- Manter a relação de confiança que tem com outras equipes
+
+ Dever de divulgar vulnerabilidades
+	- De forma coordenada 
+	- Seguindo as políticas de liberação de informação
+
+Dever de confidencialidade
+	- Manter informações em sigilo 
+	- Respeitar leis, regulamentos e cultura 
+
+Dever de confirmação e acusar recebimento
+	- Responder às perguntas em tempo hábil
+	- Confirmar que a solicitação foi recebida
+
+Dever de respeitar os direitos humanos
+	- Cuidado ao compartilhar informações
+	- Não agir de maneira tendenciosa
+
+Dever de informar
+	- Sobre ameaças e riscos de segurança
+	- Informações que possam afetar ou melhorar a segurança e a proteção
+
+Dever com a saúde da equipe
+	- Incluir a saúde física e emocional 
+	- Um ambiente de trabalho saudável, seguro e positivo, principalmente na crise
+
+Dever de habilidade da equipe
+	- Estudar, aplicar e avançar com o conhecimento
+
+Dever de coleta responsável
+	- Coletar o necessário
+	- Dados não relevantes devem ser excluídos
+	- Dados tratados de acordo com as leis 
+	- Garantir a privacidade do(s) usuário(s)
+
+Dever de reconhecer jurídicos 
+	- Respeitar as leis, regulamentos e outras questões legais
+	- Determinados pelas localizações físicas das partes envolvidas
+
+Dever de raciocínio baseado em evidências
+	- Operar com base em fatos verificáveis 
+	- Fornecer evidências e escopo de forma transparente 
+	- Abster-se de espalhar boatos
+

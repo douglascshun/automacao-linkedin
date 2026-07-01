@@ -1,0 +1,33 @@
+[[Aula 4 Soberania de dados]]
+
+Soberania, residência e localização são termos que podem gerar confusão!
+	- Soberania e residência possuem semelhanças em `localidade`
+	- Soberania e residência possuem diferenças `políticas`
+
+Residência de dados
+	- Local geográfico onde os dados serão armazenados
+	- Armazenamento de dados em outro local ou autoridade
+	- Os dados estarão sujeitos a leis e costumes deste outro local
+
+Soberania de dados
+	- Local geográfico onde os dados serão armazenados
+	- Armazenamento de dados em outro local ou autoridade
+	- Os dados estarão sujeitos a leis e costumes deste outro local
+Titulares terão diferentes proteções de privacidade e segurança
+
+Caso STF
+![[Caso STF.png]]
+
+Localização dos dados 
+	- Conceito mais rigoroso, se assemelhando a soberania de dados
+	- Requer que os dados criados permaneçam dentro da fronteira original
+	- Alguns países utilizam a localização de dados para impedir a passagem de fronteira
+
+Residência
+	 Localidade física e geográfica do armazenamento dos dados
+
+Soberania
+	Leis e regulamentos que regem o armazenamento dos dados.
+
+Localização
+	 Dados criados dentro de uma fronteira devem permanecer dentro dela

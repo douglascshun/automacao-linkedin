@@ -1,0 +1,52 @@
+[[Aula 2 Criação de um CSIRT]]
+
+Atividades Reativas:
+	- Apagar o incêndio
+
+Atividades Proativas:
+	- Conscientização
+	- Treinamento 
+	- Instalar ou verificar alarmes
+	- Consultoria
+	- Recomendações técnicas etc...
+
+Computer Security Incidente Response Team
+Definição de CSIRT
+	- É uma organização de serviços responsável por receber, revisar e responder a relatórios e atividades de incidentes de segurança de computadores.
+
+Diferenciação:
+	1. Equipes de SI (sem a responsabilidade formal de tratar incidentes)
+	2. CSIRT internos (recebeu formalmente a responsabilidade)
+	3. CSIRTs coordenadores (coordena o tratamento interno e externo)
+
+Evolução é essencial!
+	A maioria dos CSIRTs começam como organizações "orientadas à resposta" e depois, mais do que um "T"
+		1. Reativo 
+		2. Proativo
+	Metas do CSIRT alinhadas às metas de negócios
+
+Meta do CSIRT
+	- Minimizar e controlar danos 
+	- Fornecer resposta e recuperação eficaz
+	- Evitar que eventos futuros aconteçam
+
+Os CSIRTs não são estruturados da mesma maneira
+Diferenças:
+	Missão, metas e objetivos
+	Eleitorado (Grupo constituinte)
+	Serviços prestados
+	Definições e terminologia
+
+No fundo, um CSIRT acaba `tratando de incidentes` de forma ampla com parte de suas operações diárias
+	O tratamento inclui três funções:
+		- Relatório de incidentes 
+		- Análise de incidentes 
+		- Resposta a incidentes 
+
+Estruturação de um CSIRT
+	- Equipe de segurança (equipe ad hoc)
+	- Equipe dedicada distribuída 
+	- Equipe de meio período distribuída
+	- Equipe centralizada 
+	- Centro de coordenação
+	- Provedor de serviço terceiro 

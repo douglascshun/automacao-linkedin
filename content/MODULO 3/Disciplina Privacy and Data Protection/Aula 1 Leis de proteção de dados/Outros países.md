@@ -1,0 +1,48 @@
+[[Aula 1 Leis de proteção de dados]]
+
+# Canadá
+
+Canadá
+	PIPEDA
+		(Se alinha com a GDPR)
+			Aplicabilidade:
+				- Organizações que coletam, usam ou divulgam dados
+
+Princípios:
+	- Responsabilidade
+	- Identificação do propósito
+	- Consentimento
+	- Coleta limitante
+	- Limitações 
+	- Precisão
+	- Proteção
+	- Abertura
+	- Acesso individual
+	- Conformidade
+
+# Alemanha 
+
+Alemanha
+	TTDSG (Lei de Proteção de Dados de Telecomunicações e Telemedia)
+			Aplicabilidade:
+				- Quaisquer organizações estabelecidas na Alemanha
+
+Obrigações:
+	- Colete e armazene os consentimentos dos usuários
+	- Obter consentimento para armazenar ou ler informações
+	- Exibir um banner de cookies
+	- Permitir o usuário gerir seu consentimento
+
+# China
+
+China
+	PIPL (Lei de Proteção de Informações Pessoais da China)
+		Se assemelha a CCPA e GDPR
+			Aplicabilidade:
+				- Organizações ou indivíduos que processam informações na China
+
+Obrigações:
+	- Respeitas os direitos dos usuários
+	- Ter base legal para processamento de dados
+	- Divulgar as atividades de processamento de dados
+	- Fornecer segurança de dados
