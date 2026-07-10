@@ -2,8 +2,9 @@
 Automação de postagem das anotações no LinkedIn.
 
 Fluxo: valida o access token -> obtém a URN -> seleciona a próxima
-anotação .md -> reescreve com o Gemini -> gera uma imagem (IA, com
-fallback) -> publica no LinkedIn (Posts API) com a imagem anexada.
+anotação .md -> reescreve com o Gemini -> descreve uma cena visual do
+post -> gera uma imagem (IA, com fallback) -> publica no LinkedIn
+(Posts API) com a imagem anexada.
 
 O LinkedIn não emite refresh token para apps de perfil pessoal, então o
 access token (validade ~60 dias) é usado diretamente. Quando ele expira,
@@ -24,6 +25,8 @@ Opcionais (com defaults):
   GEMINI_RETRY_BASE    (default: 2.0) base do backoff exponencial, em segundos
   USE_POLLINATIONS     (default: "1") usa Pollinations.ai (imagem IA grátis)
   POLLINATIONS_MODEL   (default: flux) modelo do Pollinations (ex.: flux, turbo)
+  IMG_TEXT_CHECK       (default: "1") verifica se a imagem saiu com texto
+  IMG_RETRY_SEEDS      (default: 3)  tentativas (seeds) até sair sem texto
 """
 
 import os
@@ -49,6 +52,11 @@ DRY_RUN = os.getenv("DRY_RUN", "0") == "1"
 # primária, já que o Gemini não tem mais free tier de imagem (jun/2026).
 USE_POLLINATIONS = os.getenv("USE_POLLINATIONS", "1") == "1"
 POLLINATIONS_MODEL = os.getenv("POLLINATIONS_MODEL", "flux")
+
+# O Pollinations não aceita negative_prompt, então a ausência de texto na arte
+# depende do prompt + de conferir a imagem gerada e refazer com outro seed.
+IMG_TEXT_CHECK = os.getenv("IMG_TEXT_CHECK", "1") == "1"
+IMG_RETRY_SEEDS = int(os.getenv("IMG_RETRY_SEEDS", "3"))
 
 # pasta raiz varrida em busca das anotações .md (desacopla o motor do conteúdo)
 CONTENT_DIR = os.getenv("CONTENT_DIR", "content")
@@ -149,6 +157,15 @@ def _e_permanente(err):
     return any(t in str(err).lower() for t in _PERMANENTE)
 
 
+def _e_quota_por_minuto(err):
+    """True para o 429 de requisições por minuto do free tier. O backoff
+    exponencial (2s, 4s, 8s) não alcança essa janela: ela só reseta em ~60s."""
+    if _e_permanente(err):
+        return False
+    msg = str(err).lower()
+    return "resource_exhausted" in msg or "perminute" in msg
+
+
 def _e_transitorio(err):
     """True se o erro for transitório (sobrecarga/instabilidade do Gemini),
     sinalizando que uma nova tentativa pode ter sucesso. Limites permanentes
@@ -173,6 +190,8 @@ def _gemini_com_retry(descricao, fn, tentativas=RETRY_MAX):
             if tentativa >= tentativas or not _e_transitorio(e):
                 raise
             espera = RETRY_BASE * (2 ** (tentativa - 1))
+            if _e_quota_por_minuto(e):
+                espera = max(espera, 62.0)  # aguarda a janela de 1 min reabrir
             print(
                 f"⚠️  {descricao}: erro transitório ({e}). "
                 f"Tentativa {tentativa}/{tentativas}, aguardando {espera:.0f}s...",
@@ -292,53 +311,190 @@ def gerar_card(titulo, subtitulo):
         return None
 
 
-def gerar_imagem_pollinations(titulo):
-    """Gera a imagem por IA via Pollinations.ai — gratuito e sem API key.
-    Retorna o caminho do arquivo salvo ou None se falhar/indisponível."""
-    import urllib.parse
-    # Prompt ABSTRATO (sem o título literal): modelos de difusão tentam "escrever"
-    # o substantivo do prompt e geram texto fantasma. A relação com o post fica no
-    # texto e no card; aqui buscamos um banner limpo e profissional da marca.
-    prompt = (
-        "Abstract digital cybersecurity concept art, dark navy background, glowing "
-        "electric blue circuit lines and network nodes, faint shield and lock motifs, "
-        "depth and bokeh, minimal clean corporate tech aesthetic. "
-        "No text, no letters, no words, no typography, no UI, no logos, no watermark."
-    )
-    seed = int(hashlib.md5(titulo.encode("utf-8")).hexdigest(), 16) % 100000  # varia por post
-    url = (
-        "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
-        + f"?width=1200&height=627&nologo=true&model={POLLINATIONS_MODEL}&seed={seed}"
-    )
+# ───────────────────────── Cena visual do post ─────────────────────────
+# Cena usada quando o Gemini não descreve uma (falha, cota, resposta vazia).
+CENA_PADRAO = (
+    "abstract network nodes linked by glowing circuit lines, "
+    "faint shield and padlock motifs floating in the dark"
+)
+
+# Estilo da marca: só o ASSUNTO da imagem varia por post; a identidade visual não.
+ESTILO_MARCA = (
+    "Dark navy background, glowing electric blue accents, depth and bokeh, "
+    "minimal clean corporate tech aesthetic, cinematic lighting."
+)
+SEM_TEXTO = (
+    "No text, no letters, no words, no numbers, no typography, "
+    "no UI, no logos, no watermark."
+)
+
+# Substantivos que trazem escrita embutida: pedir "terminal" ou "poster" é pedir
+# ao modelo de difusão que escreva alguma coisa. Removidos da cena antes do envio.
+_TIPOGRAFICOS = {
+    "text", "texts", "letter", "letters", "word", "words", "sign", "signs",
+    "poster", "posters", "banner", "banners", "logo", "logos", "screen",
+    "screens", "monitor", "monitors", "terminal", "terminals", "code",
+    "dashboard", "dashboards", "book", "books", "document", "documents",
+    "keyboard", "keyboards", "label", "labels", "title", "titles", "caption",
+    "captions", "watermark", "watermarks", "font", "fonts", "billboard",
+    "billboards", "newspaper", "newspapers", "typography", "ui",
+}
+
+
+def _higienizar_cena(cena):
+    """Rede de segurança sobre a instrução dada ao Gemini: tira da cena tudo que
+    convida o modelo de difusão a escrever — números, siglas, nomes próprios,
+    aspas e os substantivos que carregam tipografia.
+
+    Devolve "" quando sobra pouco da frase original: uma cena muito mutilada
+    ("a showing with a and a on the wall") gera uma imagem pior que a padrão."""
+    cena = re.sub(r"[\"'`“”‘’]", " ", cena)
+    originais = cena.split()
+    palavras = []
+    for i, p in enumerate(originais):
+        nu = p.strip(".,;:!?()[]-")
+        if not nu:
+            continue
+        if any(c.isdigit() for c in nu):
+            continue
+        if len(nu) >= 2 and nu.isupper():          # siglas: CVE, RCE, XSS
+            continue
+        if any(c.isupper() for c in nu[1:]):       # CamelCase: DirtyClone, PowerShell
+            continue
+        if i > 0 and nu[0].isupper():              # nome próprio no meio da frase
+            continue
+        if nu.lower() in _TIPOGRAFICOS:
+            continue
+        palavras.append(p)
+
+    if not originais or len(palavras) < 0.7 * len(originais):
+        return ""
+    return re.sub(r"\s+", " ", " ".join(palavras)).strip(" .,")
+
+
+def descrever_cena(texto_post):
+    """Pede ao Gemini uma metáfora visual do post, para a imagem conversar com o
+    conteúdo. Descreve a metáfora, nunca o tema literal: um prompt com
+    'CVE-2026-43503' faz o modelo tentar desenhar essas letras."""
     try:
-        r = requests.get(url, timeout=90)
-        r.raise_for_status()
+        resp = _gemini_com_retry(
+            "Gemini (cena visual)",
+            lambda: client.models.generate_content(
+                model=TEXT_MODEL,
+                contents=(
+                    "Leia o post abaixo e descreva, em inglês, UMA cena visual "
+                    "que sirva de metáfora para o tema dele. A cena vira o prompt "
+                    "de um gerador de imagens.\n\n"
+                    f"POST: {texto_post}\n\n"
+                    "REGRAS CRÍTICAS:\n"
+                    "1. Descreva uma METÁFORA VISUAL do tema, nunca o tema literal.\n"
+                    "2. PROIBIDO: nomes próprios, siglas, números, CVEs, marcas, "
+                    "aspas, código, nomes de ferramentas.\n"
+                    "3. PROIBIDO citar objetos que carregam escrita: tela, monitor, "
+                    "terminal, dashboard, placa, cartaz, livro, documento, teclado "
+                    "com teclas visíveis, logotipo.\n"
+                    "4. Use apenas formas, objetos, materiais, luz, cor e composição.\n"
+                    "5. No máximo 35 palavras, em uma única frase.\n"
+                    "6. RESPONDA APENAS COM A DESCRIÇÃO, sem introduções."
+                ),
+            ),
+        )
+    except Exception as e:
+        print(f"⚠️ Cena visual indisponível ({e}). Usando a cena padrão.")
+        return CENA_PADRAO
+
+    cena = _higienizar_cena((resp.text or "").strip()) if resp else ""
+    if len(cena) < 15:  # a higienização esvaziou a cena — não vale a pena arriscar
+        return CENA_PADRAO
+    return cena
+
+
+def _prompt_visual(cena):
+    return f"{cena}. {ESTILO_MARCA} {SEM_TEXTO}"
+
+
+def _mime_da_imagem(dados):
+    return "image/jpeg" if dados[:2] == b"\xff\xd8" else "image/png"
+
+
+def imagem_tem_texto(path):
+    """True se a imagem contiver tipografia legível. Salvaguarda, nunca bloqueio:
+    se a própria verificação falhar, devolve False e o post segue."""
+    if not IMG_TEXT_CHECK:
+        return False
+    try:
+        from google.genai import types
+        with open(path, "rb") as f:
+            dados = f.read()
+        resp = _gemini_com_retry(
+            "Gemini (verificação de texto)",
+            lambda: client.models.generate_content(
+                model=TEXT_MODEL,
+                contents=[
+                    types.Part.from_bytes(data=dados, mime_type=_mime_da_imagem(dados)),
+                    "Esta imagem contém letras, palavras, números ou qualquer "
+                    "tipografia legível, mesmo que borrada ou parcial? "
+                    "Responda apenas SIM ou NAO.",
+                ],
+            ),
+            # 2 tentativas: o laço de seeds em gerar_imagem_pollinations já dá
+            # outra chance, e cada retry aqui consome a cota de 5 req/min
+            tentativas=2,
+        )
+        return (resp.text or "").strip().upper().startswith("SIM")
+    except Exception as e:
+        print(f"⚠️ Verificação de texto indisponível ({e}). Seguindo com a imagem.")
+        return False
+
+
+def gerar_imagem_pollinations(cena, titulo):
+    """Gera a imagem por IA via Pollinations.ai — gratuito e sem API key.
+    A cena vem do post, então a imagem varia a cada publicação. Se sair com
+    texto, refaz com outro seed. Retorna o caminho salvo ou None se falhar."""
+    import urllib.parse
+    prompt = _prompt_visual(cena)
+    for tentativa in range(1, IMG_RETRY_SEEDS + 1):
+        # o seed varia por post E por tentativa, senão o retry repetiria a imagem
+        seed = int(hashlib.md5(f"{titulo}:{tentativa}".encode("utf-8")).hexdigest(), 16) % 100000
+        url = (
+            "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt)
+            + f"?width=1200&height=627&nologo=true&model={POLLINATIONS_MODEL}&seed={seed}"
+        )
+        try:
+            r = requests.get(url, timeout=90)
+            r.raise_for_status()
+        except requests.RequestException as e:
+            print(f"⚠️ Pollinations indisponível ({e}).")
+            return None
+
         ctype = r.headers.get("Content-Type", "")
         if not ctype.startswith("image/") or len(r.content) < 2000:
             print(f"⚠️ Pollinations não retornou imagem (ctype='{ctype}', {len(r.content)} bytes).")
             return None
+
         with open(IMG_OUT, "wb") as f:
             f.write(r.content)
-        print(f"🎨 Imagem gerada por IA grátis (Pollinations/{POLLINATIONS_MODEL}).")
-        return IMG_OUT
-    except requests.RequestException as e:
-        print(f"⚠️ Pollinations indisponível ({e}).")
-        return None
+
+        if not imagem_tem_texto(IMG_OUT):
+            print(f"🎨 Imagem gerada por IA grátis (Pollinations/{POLLINATIONS_MODEL}).")
+            return IMG_OUT
+        print(f"⚠️ Texto detectado na imagem ({tentativa}/{IMG_RETRY_SEEDS}); refazendo com outro seed.")
+
+    print("⚠️ Pollinations insistiu em gerar texto. Passando ao próximo gerador.")
+    return None
 
 
-def gerar_imagem(titulo, subtitulo):
+def gerar_imagem(texto, titulo, subtitulo):
     """Imagem do post: tenta IA grátis (Pollinations) e, se houver billing, o
     Gemini (Imagen/Flash Image); senão gera um CARD dinâmico com o tema do post;
-    e por último o banner fixo."""
-    prompt = (
-        f"Professional, modern cybersecurity banner illustration about '{titulo}'. "
-        "Dark background, electric blue (#1987F0) accents, abstract network/tech motifs, "
-        "clean corporate style, no text, no logos, no watermark."
-    )
+    e por último o banner fixo. A arte por IA nasce de uma cena derivada do texto."""
+    cena = descrever_cena(texto)
+    print(f"🎬 Cena visual: {cena}")
+    prompt = _prompt_visual(cena)
 
     # 0) Pollinations.ai — IA gratuita, sem API key (fonte primária)
     if USE_POLLINATIONS:
-        img = gerar_imagem_pollinations(titulo)
+        img = gerar_imagem_pollinations(cena, titulo)
         if img:
             return img
 
@@ -489,7 +645,7 @@ def main():
         sys.exit(1)
 
     titulo, subtitulo = _titulo_legivel(arquivo)
-    imagem = gerar_imagem(titulo, subtitulo)
+    imagem = gerar_imagem(texto, titulo, subtitulo)
 
     try:
         image_urn = upload_imagem(urn, imagem) if imagem else None
