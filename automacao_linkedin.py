@@ -647,11 +647,17 @@ def main():
     titulo, subtitulo = _titulo_legivel(arquivo)
     imagem = gerar_imagem(texto, titulo, subtitulo)
 
-    try:
-        image_urn = upload_imagem(urn, imagem) if imagem else None
-    except requests.RequestException as e:
-        print(f"⚠️ Falha no upload da imagem ({e}). Publicando sem imagem.")
+    if DRY_RUN:
+        # o upload já cria o asset no LinkedIn: num ensaio, deixaria uma imagem
+        # órfã a cada execução
+        print(f"🧪 DRY_RUN ativo — imagem em {imagem}, upload NÃO enviado.")
         image_urn = None
+    else:
+        try:
+            image_urn = upload_imagem(urn, imagem) if imagem else None
+        except requests.RequestException as e:
+            print(f"⚠️ Falha no upload da imagem ({e}). Publicando sem imagem.")
+            image_urn = None
 
     res = postar(urn, texto, image_urn)
     if DRY_RUN:
