@@ -222,7 +222,10 @@ def gerar_texto(conteudo):
             "6. Máximo 1300 caracteres.\n"
             "7. NÃO USE EMOJIS.\n"
             "8. NÃO use markdown: nada de ** ou * para negrito/itálico, nem # para títulos. "
-            "O LinkedIn não renderiza formatação — escreva texto puro."
+            "O LinkedIn não renderiza formatação, escreva texto puro.\n"
+            "9. NÃO USE TRAVESSÃO (— ou –) nem hífen solto entre espaços ( - ). "
+            "É a marca registrada de texto gerado por IA. Use vírgula, ponto ou dois-pontos. "
+            "O hífen só aparece dentro de palavras compostas (e-mail, pós-graduação)."
         ),
         ),
     )
@@ -246,7 +249,26 @@ def _limpar_saida(post_final):
             partes = post_final.split("\n", 1)
             if len(partes) > 1:
                 post_final = partes[1].strip()
-    return _remover_markdown(post_final).strip()
+    return _remover_travessoes(_remover_markdown(post_final)).strip()
+
+
+# travessão, meia-risca, barra horizontal e traço de algarismo
+_TRAVESSOES = "—–―‒"
+
+
+def _remover_travessoes(texto):
+    """O travessão denuncia texto gerado por IA. Troca por vírgula, preservando o
+    hífen das palavras compostas (e-mail, pós-graduação) e o '• ' dos bullets.
+
+    Roda depois de _remover_markdown: lá o '- ' que abre linha já virou bullet,
+    então o que sobrar de hífen espaçado aqui é travessão de fato."""
+    t = re.sub(rf"(?<=\d)\s*[{_TRAVESSOES}]\s*(?=\d)", " a ", texto)   # 2020–2024
+    t = re.sub(rf"\s*[{_TRAVESSOES}]\s*", ", ", t)
+    t = re.sub(r"(?<!^)(?<!\n)(?<!•) +- +", ", ", t)                   # hífen usado como travessão
+    t = re.sub(r"(?:,\s*){2,}", ", ", t)                               # vírgulas duplicadas
+    t = re.sub(r"\s+,", ",", t)
+    t = re.sub(r",\s*([.!?:;])", r"\1", t)                             # ", ." -> "."
+    return t
 
 
 def _remover_markdown(texto):
