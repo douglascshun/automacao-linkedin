@@ -889,7 +889,10 @@ def main():
         return
 
     if res.status_code in (200, 201):
-        print("🚀 Post publicado com sucesso!")
+        urn_post = res.headers.get("x-restli-id") or res.headers.get("x-linkedin-id") or "?"
+        print(f"🚀 Post publicado! status={res.status_code} urn={urn_post}")
+        print(f"🔗 Verifique em: https://www.linkedin.com/feed/update/{urn_post}")
+        print(f"   (autor do post: {urn})")
         gravar_contador(n)                      # avança o contador global
         if e_noticia:
             marcar_noticia(titulo_noticia)      # não repostar a mesma notícia
