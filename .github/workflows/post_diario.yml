@@ -76,8 +76,8 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           rm -f .token_expired post_image.png
-          git add post_index.txt
-          if git commit -m "Atualiza índice [skip ci]"; then
+          git add post_index.txt contador.txt noticias_postadas.txt
+          if git commit -m "Atualiza estado [skip ci]"; then
             git push || (git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push)
           else
             echo "Sem mudanças no índice."
