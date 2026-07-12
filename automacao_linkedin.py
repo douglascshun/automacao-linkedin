@@ -368,9 +368,10 @@ def gerar_card(titulo, subtitulo):
 
 # ───────────────────────── Cena visual do post ─────────────────────────
 # Cena usada quando o Gemini não descreve uma (falha, cota, resposta vazia).
+# Mãos no teclado: sem superfície escrita, foi a amostra mais limpa de texto.
 CENA_PADRAO = (
-    "a tidy modern desk with a laptop, an open notebook and a coffee mug, "
-    "soft daylight from a nearby window"
+    "close-up of hands typing on a modern laptop keyboard on a wooden desk, "
+    "a coffee mug beside it, soft daylight from a nearby window"
 )
 
 # Estilo fotográfico: só o ASSUNTO da imagem varia; o look de FOTO REAL não.
@@ -449,12 +450,15 @@ def descrever_cena(texto_post):
                     "abstrato ou 'arte conceitual'. É uma FOTO da realidade.\n"
                     "3. Prefira AMBIENTE, OBJETOS e MÃOS. Se houver pessoas, que "
                     "sejam de longe, de costas ou parciais — nunca rosto em close.\n"
-                    "4. PROIBIDO: nomes próprios, siglas, números, CVEs, marcas, "
+                    "4. EVITE superfícies escritas: nada de caderno ou papel com "
+                    "anotações/diagramas, nem tela mostrando interface detalhada. "
+                    "Se um laptop aparecer, a tela está apagada, escura ou desfocada.\n"
+                    "5. PROIBIDO: nomes próprios, siglas, números, CVEs, marcas, "
                     "nomes de ferramentas, e qualquer placa, cartaz, tela com texto "
                     "legível ou logotipo.\n"
-                    "5. Descreva luz, ambiente, enquadramento e clima. Luz natural.\n"
-                    "6. No máximo 30 palavras, em uma única frase.\n"
-                    "7. RESPONDA APENAS COM A DESCRIÇÃO, sem introduções."
+                    "6. Descreva luz, ambiente, enquadramento e clima. Luz natural.\n"
+                    "7. No máximo 30 palavras, em uma única frase.\n"
+                    "8. RESPONDA APENAS COM A DESCRIÇÃO, sem introduções."
                 ),
             ),
         )
