@@ -8,11 +8,14 @@ on:
         type: boolean
         default: false
   schedule:
-    # 20:23 UTC (~17:23 BRT). Horário DIFERENTE do repo de anotações original
-    # (que roda 12:23 UTC ~09:23 BRT), para os dois coexistirem sem colidir
-    # durante a validação. Mantém o minuto ':23' (evita o ':00', fila mais
-    # concorrida do GitHub Actions, que costuma atrasar o agendamento em horas).
-    - cron: '23 20 * * *'
+    # Horários de pico de engajamento no LinkedIn (estudos 2026: Buffer 4,8M
+    # posts, Sprout, Kanbox). Público brasileiro, então BRT = UTC-3.
+    # O GitHub Actions roda em UTC. Minuto ':17' evita o ':00' (fila mais
+    # concorrida, que costuma atrasar o agendamento em horas).
+    #   ter/qua/qui às 09:17 BRT (manhã, janela de maior alcance)
+    - cron: '17 12 * * 2,3,4'
+    #   sexta às 15:17 BRT (segundo pico citado nos estudos)
+    - cron: '17 18 * * 5'
 
 jobs:
   build:
