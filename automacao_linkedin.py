@@ -201,7 +201,29 @@ def _gemini_com_retry(descricao, fn, tentativas=RETRY_MAX):
 
 
 # ───────────────────────── Gemini: texto ─────────────────────────
+# Marcadores de que o conteúdo é material de aula — não podem chegar ao post.
+_RX_WIKILINK = re.compile(r"!?\[\[[^\]]*\]\]")          # [[Aula 2 ...]] e ![[img.png]]
+_RX_MD_IMG = re.compile(r"!\[[^\]]*\]\([^)]*\)")         # ![alt](path.png)
+_TERMOS_AULA = re.compile(
+    r"\b(aula|m[óo]dulo|disciplina|curso|faculdade|professor(?:es|a)?|"
+    r"aluno(?:s|a)?|apostila|v[íi]deo-?aula(?:s)?)\b",
+    re.IGNORECASE,
+)
+
+
+def _limpar_fonte(conteudo):
+    """Tira do material bruto o que denuncia a origem em aula ANTES de mandar ao
+    Gemini: wiki-links [[Aula 2 ...]], embeds de imagem e frases meta ('Neste
+    módulo foram discutidos...'). O modelo não pode ecoar o que não recebe."""
+    conteudo = _RX_WIKILINK.sub(" ", conteudo)
+    conteudo = _RX_MD_IMG.sub(" ", conteudo)
+    frases = re.split(r"(?<=[.!?\n])\s+", conteudo)
+    limpas = [f for f in frases if not _TERMOS_AULA.search(f)]
+    return re.sub(r"\n{3,}", "\n\n", " ".join(limpas)).strip()
+
+
 def gerar_texto(conteudo):
+    conteudo = _limpar_fonte(conteudo)
     response = _gemini_com_retry(
         "Gemini (texto)",
         lambda: client.models.generate_content(
@@ -225,7 +247,12 @@ def gerar_texto(conteudo):
             "O LinkedIn não renderiza formatação, escreva texto puro.\n"
             "9. NÃO USE TRAVESSÃO (— ou –) nem hífen solto entre espaços ( - ). "
             "É a marca registrada de texto gerado por IA. Use vírgula, ponto ou dois-pontos. "
-            "O hífen só aparece dentro de palavras compostas (e-mail, pós-graduação)."
+            "O hífen só aparece dentro de palavras compostas (e-mail, pós-graduação).\n"
+            "10. NUNCA revele que isto vem de aulas, curso, faculdade ou material de estudo. "
+            "Proibido escrever aula, módulo, disciplina, curso, faculdade, professor, aluno, "
+            "apostila, 'neste módulo', 'nesta aula', 'estudamos', 'vimos'. "
+            "Escreva como conteúdo AUTORAL e original, da voz de um profissional que domina o tema, "
+            "não de quem está resumindo uma aula."
         ),
         ),
     )
@@ -249,7 +276,18 @@ def _limpar_saida(post_final):
             partes = post_final.split("\n", 1)
             if len(partes) > 1:
                 post_final = partes[1].strip()
-    return _remover_travessoes(_remover_markdown(post_final)).strip()
+    return _remover_referencias_aula(_remover_travessoes(_remover_markdown(post_final))).strip()
+
+
+def _remover_referencias_aula(texto):
+    """Rede de segurança na saída: derruba qualquer LINHA que ainda cite aula,
+    módulo, disciplina, professor etc. — caso o modelo ignore a regra do prompt.
+    Trabalha por linha para preservar bullets e a estrutura de parágrafos."""
+    if not _TERMOS_AULA.search(texto):
+        return texto
+    linhas = [ln for ln in texto.split("\n") if not _TERMOS_AULA.search(ln)]
+    limpo = re.sub(r"\n{3,}", "\n\n", "\n".join(linhas)).strip()
+    return limpo if limpo else texto
 
 
 # travessão, meia-risca, barra horizontal e traço de algarismo
@@ -301,7 +339,9 @@ def _fonte(tamanho, bold=True):
 
 
 def gerar_card(titulo, subtitulo):
-    """Gera um card visual com o tema do post (varia a cada post = parece autêntico)."""
+    """Fallback final (só quando toda a geração por IA falha): um gradiente limpo
+    da marca, SEM NENHUM TEXTO. O seed varia o tom por post. Não estampa título
+    nem nome — texto na imagem foi justamente o que se quis eliminar."""
     try:
         from PIL import Image, ImageDraw
         W, H = 1200, 627
@@ -318,15 +358,8 @@ def gerar_card(titulo, subtitulo):
             ))
         d.rectangle([0, 0, W, 8], fill="#1987F0")
         d.rectangle([0, H - 8, W, H], fill="#1987F0")
-        d.text((60, 72), subtitulo.upper()[:48], font=_fonte(26, False), fill="#1987F0")
-        y = 150
-        for linha in textwrap.wrap(titulo, width=24)[:4]:
-            d.text((60, y), linha, font=_fonte(54), fill="#ffffff")
-            y += 66
-        d.text((60, H - 70), "Douglas Cshunderlick  ·  Segurança da Informação",
-               font=_fonte(24, False), fill="#c9d1d9")
         img.save(IMG_OUT, "PNG")
-        print("🖼️ Card dinâmico gerado (tema do post).")
+        print("🖼️ Card de marca gerado (gradiente, sem texto).")
         return IMG_OUT
     except Exception as e:
         print(f"⚠️ Falha ao gerar card ({e}).")
@@ -336,30 +369,30 @@ def gerar_card(titulo, subtitulo):
 # ───────────────────────── Cena visual do post ─────────────────────────
 # Cena usada quando o Gemini não descreve uma (falha, cota, resposta vazia).
 CENA_PADRAO = (
-    "abstract network nodes linked by glowing circuit lines, "
-    "faint shield and padlock motifs floating in the dark"
+    "a tidy modern desk with a laptop, an open notebook and a coffee mug, "
+    "soft daylight from a nearby window"
 )
 
-# Estilo da marca: só o ASSUNTO da imagem varia por post; a identidade visual não.
+# Estilo fotográfico: só o ASSUNTO da imagem varia; o look de FOTO REAL não.
 ESTILO_MARCA = (
-    "Dark navy background, glowing electric blue accents, depth and bokeh, "
-    "minimal clean corporate tech aesthetic, cinematic lighting."
+    "Realistic professional editorial photograph, shot on a DSLR, natural soft "
+    "lighting, shallow depth of field, true-to-life colors, candid documentary "
+    "style. NOT futuristic, no sci-fi, no neon, no holograms, no dystopia."
 )
 SEM_TEXTO = (
-    "No text, no letters, no words, no numbers, no typography, "
-    "no UI, no logos, no watermark."
+    "No readable text, no letters, no words, no numbers, no captions, "
+    "no signage, no logos, no watermark."
 )
 
-# Substantivos que trazem escrita embutida: pedir "terminal" ou "poster" é pedir
-# ao modelo de difusão que escreva alguma coisa. Removidos da cena antes do envio.
+# Objetos puramente textuais: pedir "poster" ou "logo" é pedir ao modelo que
+# escreva algo. Removidos da cena antes do envio. NÃO inclui laptop/teclado/mesa
+# — numa foto realista esses aparecem naturalmente e o verificador cuida do texto.
 _TIPOGRAFICOS = {
     "text", "texts", "letter", "letters", "word", "words", "sign", "signs",
-    "poster", "posters", "banner", "banners", "logo", "logos", "screen",
-    "screens", "monitor", "monitors", "terminal", "terminals", "code",
-    "dashboard", "dashboards", "book", "books", "document", "documents",
-    "keyboard", "keyboards", "label", "labels", "title", "titles", "caption",
-    "captions", "watermark", "watermarks", "font", "fonts", "billboard",
-    "billboards", "newspaper", "newspapers", "typography", "ui",
+    "signage", "poster", "posters", "banner", "banners", "logo", "logos",
+    "label", "labels", "caption", "captions", "headline", "headlines",
+    "watermark", "watermarks", "billboard", "billboards", "newspaper",
+    "newspapers", "magazine", "magazines", "slogan", "subtitle", "typography",
 }
 
 
@@ -395,29 +428,33 @@ def _higienizar_cena(cena):
 
 
 def descrever_cena(texto_post):
-    """Pede ao Gemini uma metáfora visual do post, para a imagem conversar com o
-    conteúdo. Descreve a metáfora, nunca o tema literal: um prompt com
-    'CVE-2026-43503' faz o modelo tentar desenhar essas letras."""
+    """Pede ao Gemini uma cena FOTOGRÁFICA REAL ligada ao tema do post — um
+    ambiente ou objeto do mundo do trabalho (escritório, datacenter, mãos no
+    teclado), não uma metáfora abstrata nem uma visão futurista."""
     try:
         resp = _gemini_com_retry(
             "Gemini (cena visual)",
             lambda: client.models.generate_content(
                 model=TEXT_MODEL,
                 contents=(
-                    "Leia o post abaixo e descreva, em inglês, UMA cena visual "
-                    "que sirva de metáfora para o tema dele. A cena vira o prompt "
-                    "de um gerador de imagens.\n\n"
+                    "Leia o post abaixo e descreva, em inglês, UMA cena de "
+                    "FOTOGRAFIA REALISTA do mundo real, ligada ao tema. A cena "
+                    "vira o prompt de um gerador de imagens.\n\n"
                     f"POST: {texto_post}\n\n"
                     "REGRAS CRÍTICAS:\n"
-                    "1. Descreva uma METÁFORA VISUAL do tema, nunca o tema literal.\n"
-                    "2. PROIBIDO: nomes próprios, siglas, números, CVEs, marcas, "
-                    "aspas, código, nomes de ferramentas.\n"
-                    "3. PROIBIDO citar objetos que carregam escrita: tela, monitor, "
-                    "terminal, dashboard, placa, cartaz, livro, documento, teclado "
-                    "com teclas visíveis, logotipo.\n"
-                    "4. Use apenas formas, objetos, materiais, luz, cor e composição.\n"
-                    "5. No máximo 35 palavras, em uma única frase.\n"
-                    "6. RESPONDA APENAS COM A DESCRIÇÃO, sem introduções."
+                    "1. Cena do MUNDO REAL: um ambiente ou objeto do dia a dia de "
+                    "tecnologia (mesa de trabalho, escritório, sala de servidores, "
+                    "mãos digitando num laptop, equipamento de rede, etc.).\n"
+                    "2. PROIBIDO futurista, sci-fi, néon, holograma, distopia, "
+                    "abstrato ou 'arte conceitual'. É uma FOTO da realidade.\n"
+                    "3. Prefira AMBIENTE, OBJETOS e MÃOS. Se houver pessoas, que "
+                    "sejam de longe, de costas ou parciais — nunca rosto em close.\n"
+                    "4. PROIBIDO: nomes próprios, siglas, números, CVEs, marcas, "
+                    "nomes de ferramentas, e qualquer placa, cartaz, tela com texto "
+                    "legível ou logotipo.\n"
+                    "5. Descreva luz, ambiente, enquadramento e clima. Luz natural.\n"
+                    "6. No máximo 30 palavras, em uma única frase.\n"
+                    "7. RESPONDA APENAS COM A DESCRIÇÃO, sem introduções."
                 ),
             ),
         )
