@@ -27,6 +27,11 @@ Opcionais (com defaults):
   POLLINATIONS_MODEL   (default: flux) modelo do Pollinations (ex.: flux, turbo)
   IMG_TEXT_CHECK       (default: "1") verifica se a imagem saiu com texto
   IMG_RETRY_SEEDS      (default: 3)  tentativas (seeds) até sair sem texto
+  NEWS_CADA            (default: 3)  1 post de atualidade (CVE/notícia) a cada N
+  EN_CADA              (default: 5)  1 post em inglês a cada N
+  CTA_CADA             (default: 4)  1 rodapé de CTA/links a cada N
+  NEWS_FEEDS           (default: The Hacker News, BleepingComputer, CISA) feeds RSS
+  SITE_URL/GITHUB_URL/WHATSAPP_URL   links da marca usados no CTA
 """
 
 import os
@@ -61,6 +66,27 @@ IMG_RETRY_SEEDS = int(os.getenv("IMG_RETRY_SEEDS", "3"))
 # pasta raiz varrida em busca das anotações .md (desacopla o motor do conteúdo)
 CONTENT_DIR = os.getenv("CONTENT_DIR", "content")
 INDEX_FILE = "post_index.txt"
+CONTADOR_FILE = "contador.txt"          # total de posts (dirige cadência de tipo/idioma/CTA)
+NEWS_LOG = "noticias_postadas.txt"      # títulos de notícias já postadas (dedup)
+
+# ── Marca: links reais (extraídos do site) usados nos CTAs ──
+SITE_URL = os.getenv("SITE_URL", "https://site-servicos.douglascshunderlick.workers.dev")
+GITHUB_URL = os.getenv("GITHUB_URL", "https://github.com/douglascshun")
+WHATSAPP_URL = os.getenv("WHATSAPP_URL", "https://wa.me/5512982371002")
+
+# ── Cadências (1 a cada N posts). Ajustáveis por env. ──
+NEWS_CADA = int(os.getenv("NEWS_CADA", "3"))    # atualidade (CVE/notícia)
+EN_CADA = int(os.getenv("EN_CADA", "5"))        # post em inglês
+CTA_CADA = int(os.getenv("CTA_CADA", "4"))      # rodapé de CTA/links
+
+# Feeds de segurança (RSS/Atom). The Hacker News + BleepingComputer (notícia) e
+# CISA (CVEs em exploração ativa). Testados e acessíveis.
+NEWS_FEEDS = [u.strip() for u in os.getenv(
+    "NEWS_FEEDS",
+    "https://feeds.feedburner.com/TheHackersNews,"
+    "https://www.bleepingcomputer.com/feed/,"
+    "https://www.cisa.gov/cybersecurity-advisories/all.xml",
+).split(",") if u.strip()]
 TOKEN_FLAG = ".token_expired"        # sinaliza ao workflow que o token caducou
 IMG_OUT = "post_image.png"           # imagem gerada (efêmera)
 FALLBACK_IMG = "assets/post_fallback.png"  # banner de marca (último recurso)
@@ -129,6 +155,90 @@ def carregar_proximo_arquivo():
     if index >= len(arquivos_md):
         index = 0
     return arquivos_md[index], index
+
+
+# ───────────────────────── Estado: contador de posts ─────────────────────────
+def ler_contador():
+    try:
+        with open(CONTADOR_FILE) as f:
+            return int(f.read().strip() or 0)
+    except (OSError, ValueError):
+        return 0
+
+
+def gravar_contador(n):
+    with open(CONTADOR_FILE, "w") as f:
+        f.write(str(n))
+
+
+# ───────────────────────── Atualidade: feeds de segurança ─────────────────────────
+_ATOM = "{http://www.w3.org/2005/Atom}"
+
+
+def _noticias_vistas():
+    try:
+        with open(NEWS_LOG, encoding="utf-8") as f:
+            return {ln.strip() for ln in f if ln.strip()}
+    except OSError:
+        return set()
+
+
+def _chave_noticia(titulo):
+    return hashlib.md5(titulo.strip().lower().encode("utf-8")).hexdigest()[:16]
+
+
+def marcar_noticia(titulo):
+    with open(NEWS_LOG, "a", encoding="utf-8") as f:
+        f.write(_chave_noticia(titulo) + "\n")
+
+
+def buscar_noticia():
+    """Varre os feeds e devolve a 1ª notícia recente ainda não postada como
+    (titulo, resumo, link), ou None se nada novo / feeds fora do ar."""
+    import xml.etree.ElementTree as ET
+    vistas = _noticias_vistas()
+    for url in NEWS_FEEDS:
+        try:
+            r = requests.get(url, timeout=25, headers={"User-Agent": "automacao-linkedin/1.0"})
+            r.raise_for_status()
+            root = ET.fromstring(r.content)
+        except Exception as e:
+            print(f"⚠️ Feed indisponível ({url}): {e}")
+            continue
+        itens = root.findall(".//item") or root.findall(f".//{_ATOM}entry")
+        for it in itens:
+            titulo = (it.findtext("title") or it.findtext(f"{_ATOM}title") or "").strip()
+            if not titulo or _chave_noticia(titulo) in vistas:
+                continue
+            import html
+            resumo = it.findtext("description") or it.findtext(f"{_ATOM}summary") or ""
+            resumo = html.unescape(re.sub(r"<[^>]+>", " ", resumo))   # tira HTML e entidades
+            link = (it.findtext("link") or "").strip()
+            if not link:                                       # Atom: href no atributo
+                el = it.find(f"{_ATOM}link")
+                link = el.get("href", "") if el is not None else ""
+            print(f"📰 Notícia: {titulo[:70]}")
+            return titulo, re.sub(r"\s+", " ", resumo).strip()[:600], link.strip()
+    print("📰 Nenhuma notícia nova nos feeds.")
+    return None
+
+
+# ───────────────────────── CTA / links da marca ─────────────────────────
+def rodape_cta(idioma="pt-BR"):
+    """Rodapé de conversão, adicionado a 1 post a cada CTA_CADA. Sem parênteses
+    (o escape do commentary os quebraria) e com os links reais do site."""
+    if idioma == "pt-BR":
+        chamada = "Precisa de segurança, software ou IA sob medida? Vamos conversar."
+        site, port = "Site", "Portfólio"
+    else:
+        chamada = "Need tailored security, software or AI? Let's talk."
+        site, port = "Site", "Portfolio"
+    return (
+        f"\n\n{chamada}\n"
+        f"WhatsApp: {WHATSAPP_URL}\n"
+        f"{site}: {SITE_URL}\n"
+        f"{port}: {GITHUB_URL}"
+    )
 
 
 # ───────────────────────── Gemini: retry ─────────────────────────
@@ -222,38 +332,68 @@ def _limpar_fonte(conteudo):
     return re.sub(r"\n{3,}", "\n\n", " ".join(limpas)).strip()
 
 
-def gerar_texto(conteudo):
+def _bloco_regras(idioma, com_regra_aula=True):
+    """Regras comuns a todo post (aula ou notícia). idioma: 'pt-BR' ou 'en'."""
+    lang = ("PORTUGUÊS DO BRASIL (pt-BR)" if idioma == "pt-BR"
+            else "INGLÊS natural e fluente (English)")
+    regras = (
+        "REGRAS CRÍTICAS:\n"
+        f"1. O POST INTEIRO DEVE ESTAR EM {lang}, incluindo hook, bullets, CTA e hashtags. "
+        "Termos técnicos consagrados em inglês (Red Team, phishing, firewall) podem ficar como são.\n"
+        "2. RESPONDA APENAS COM O TEXTO FINAL DO POST.\n"
+        "3. NÃO inclua introduções como 'Aqui está o post' ou 'Claro'.\n"
+        "4. NÃO inclua aspas no início ou no fim.\n"
+        "5. Use HOOK, bullet points (cada item começando com '• '), tom profissional/direto, CTA e 3 hashtags.\n"
+        "6. Máximo 1300 caracteres.\n"
+        "7. NÃO USE EMOJIS.\n"
+        "8. NÃO use markdown: nada de ** ou * nem #. O LinkedIn não renderiza formatação, escreva texto puro.\n"
+        "9. NÃO USE TRAVESSÃO (— ou –) nem hífen solto entre espaços ( - ). "
+        "É a marca registrada de texto gerado por IA. Use vírgula, ponto ou dois-pontos. "
+        "O hífen só aparece dentro de palavras compostas (e-mail, pós-graduação)."
+    )
+    if com_regra_aula:
+        regras += (
+            "\n10. NUNCA revele que isto vem de aulas, curso, faculdade ou material de estudo. "
+            "Proibido aula, módulo, disciplina, curso, faculdade, professor, aluno, apostila, "
+            "'neste módulo', 'nesta aula', 'estudamos', 'vimos'. "
+            "Escreva como conteúdo AUTORAL e original, da voz de quem domina o tema."
+        )
+    return regras
+
+
+def gerar_texto(conteudo, idioma="pt-BR"):
     conteudo = _limpar_fonte(conteudo)
+    intro = (
+        "Reescreva o conteúdo abaixo para eu publicar no LinkedIn, como um hacker "
+        "avançado em Red Team escreveria. Tire a mecânica de emojis e as quebras de "
+        "linha excessivas que entregam IA.\n\n"
+        f"CONTEÚDO BASE: {conteudo}\n\n"
+    )
     response = _gemini_com_retry(
         "Gemini (texto)",
         lambda: client.models.generate_content(
-        model=TEXT_MODEL,
-        contents=(
-            "Escreva SEMPRE em português do Brasil (pt-BR), qualquer que seja o idioma do conteúdo base. "
-            "Reescreva para eu publicar no LinkedIn, como um hacker avançado em Red Team escreveria. "
-            "Tire a mecânica padrão de emojis e as quebras de linha excessivas que entregam que foi gerado por IA. "
-            "Converta o conteúdo abaixo em um post para LinkedIn.\n\n"
-            f"CONTEÚDO BASE: {conteudo}\n\n"
-            "REGRAS CRÍTICAS:\n"
-            "1. O POST INTEIRO DEVE ESTAR EM PORTUGUÊS DO BRASIL (pt-BR), incluindo hook, bullets, CTA e hashtags. "
-            "Termos técnicos consagrados em inglês (ex.: Red Team, phishing, firewall) podem ser mantidos, mas o texto é em português.\n"
-            "2. RESPONDA APENAS COM O TEXTO FINAL DO POST.\n"
-            "3. NÃO inclua introduções como 'Aqui está o post' ou 'Claro'.\n"
-            "4. NÃO inclua aspas no início ou no fim.\n"
-            "5. Use HOOK, bullet points (cada item começando com '• '), tom profissional/direto, CTA e 3 hashtags.\n"
-            "6. Máximo 1300 caracteres.\n"
-            "7. NÃO USE EMOJIS.\n"
-            "8. NÃO use markdown: nada de ** ou * para negrito/itálico, nem # para títulos. "
-            "O LinkedIn não renderiza formatação, escreva texto puro.\n"
-            "9. NÃO USE TRAVESSÃO (— ou –) nem hífen solto entre espaços ( - ). "
-            "É a marca registrada de texto gerado por IA. Use vírgula, ponto ou dois-pontos. "
-            "O hífen só aparece dentro de palavras compostas (e-mail, pós-graduação).\n"
-            "10. NUNCA revele que isto vem de aulas, curso, faculdade ou material de estudo. "
-            "Proibido escrever aula, módulo, disciplina, curso, faculdade, professor, aluno, "
-            "apostila, 'neste módulo', 'nesta aula', 'estudamos', 'vimos'. "
-            "Escreva como conteúdo AUTORAL e original, da voz de um profissional que domina o tema, "
-            "não de quem está resumindo uma aula."
+            model=TEXT_MODEL,
+            contents=intro + _bloco_regras(idioma, com_regra_aula=True),
         ),
+    )
+    if not response or not response.text:
+        return None
+    return _limpar_saida(response.text.strip())
+
+
+def gerar_texto_noticia(titulo, resumo, idioma="pt-BR"):
+    """Post autoral comentando uma notícia recente de segurança (não copia a fonte)."""
+    intro = (
+        "Comente no LinkedIn, como especialista em segurança, esta notícia recente. "
+        "Explique em poucas linhas o que aconteceu, por que importa e um aprendizado "
+        "prático. NÃO copie o texto da notícia, analise com autoridade própria.\n\n"
+        f"NOTÍCIA: {titulo}\nRESUMO: {resumo}\n\n"
+    )
+    response = _gemini_com_retry(
+        "Gemini (texto notícia)",
+        lambda: client.models.generate_content(
+            model=TEXT_MODEL,
+            contents=intro + _bloco_regras(idioma, com_regra_aula=False),
         ),
     )
     if not response or not response.text:
@@ -689,30 +829,52 @@ def main():
         # se foi expiração de token, a flag já foi criada para o workflow avisar
         sys.exit(1)
 
-    arquivo, idx = carregar_proximo_arquivo()
-    if not arquivo:
-        print("📁 Nenhum arquivo .md encontrado para postar.")
-        return
+    # n = número deste post; dirige tipo (aula/notícia), idioma e CTA por cadência
+    n = ler_contador() + 1
+    idioma = "en" if n % EN_CADA == 0 else "pt-BR"
+    quer_noticia = (n % NEWS_CADA == 0)
 
-    print(f"📖 Lendo arquivo: {arquivo}")
-    with open(arquivo, "r", encoding="utf-8") as f:
-        conteudo = f.read()
+    noticia = buscar_noticia() if quer_noticia else None
+    e_noticia = noticia is not None
 
-    try:
-        texto = gerar_texto(conteudo)
-    except Exception as e:
-        print(f"❌ Erro no Gemini (texto): {e}")
-        sys.exit(1)
+    if e_noticia:
+        titulo_noticia, resumo, _link = noticia
+        print(f"🗞️  Post de ATUALIDADE (n={n}, idioma={idioma})")
+        try:
+            texto = gerar_texto_noticia(titulo_noticia, resumo, idioma)
+        except Exception as e:
+            print(f"❌ Erro no Gemini (notícia): {e}")
+            sys.exit(1)
+        titulo, subtitulo, arquivo, idx = titulo_noticia, "Segurança", None, None
+    else:
+        arquivo, idx = carregar_proximo_arquivo()
+        if not arquivo:
+            print("📁 Nenhum arquivo .md encontrado para postar.")
+            return
+        print(f"📖 Post de conteúdo (n={n}, idioma={idioma}): {arquivo}")
+        with open(arquivo, "r", encoding="utf-8") as f:
+            conteudo = f.read()
+        try:
+            texto = gerar_texto(conteudo, idioma)
+        except Exception as e:
+            print(f"❌ Erro no Gemini (texto): {e}")
+            sys.exit(1)
+        titulo, subtitulo = _titulo_legivel(arquivo)
+
     if not texto:
         print("❌ Gemini retornou texto vazio.")
         sys.exit(1)
 
-    titulo, subtitulo = _titulo_legivel(arquivo)
+    # imagem descreve a cena a partir do texto NÚCLEO (antes do CTA, que traz URLs)
     imagem = gerar_imagem(texto, titulo, subtitulo)
 
+    # CTA/links da marca a cada CTA_CADA posts
+    if n % CTA_CADA == 0:
+        texto = texto + rodape_cta(idioma)
+        print(f"🔗 CTA anexado (n={n}).")
+
     if DRY_RUN:
-        # o upload já cria o asset no LinkedIn: num ensaio, deixaria uma imagem
-        # órfã a cada execução
+        # o upload já cria o asset no LinkedIn: num ensaio, deixaria uma imagem órfã
         print(f"🧪 DRY_RUN ativo — imagem em {imagem}, upload NÃO enviado.")
         image_urn = None
     else:
@@ -728,8 +890,12 @@ def main():
 
     if res.status_code in (200, 201):
         print("🚀 Post publicado com sucesso!")
-        with open(INDEX_FILE, "w") as f:
-            f.write(str(idx + 1))
+        gravar_contador(n)                      # avança o contador global
+        if e_noticia:
+            marcar_noticia(titulo_noticia)      # não repostar a mesma notícia
+        else:
+            with open(INDEX_FILE, "w") as f:    # avança o índice de conteúdo
+                f.write(str(idx + 1))
     elif res.status_code == 401:
         sinalizar_token_expirado(f"posts 401: {res.text[:200]}")
         sys.exit(1)
